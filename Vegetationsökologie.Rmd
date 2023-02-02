@@ -1,0 +1,1032 @@
+---
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+# Bibliothek
+```{r}
+library(readxl)
+library(dplyr)
+library(reshape2)
+library(PMCMRplus)
+library(ggplot2)
+library(datasets)
+library(multcompView)
+library(fmsb)
+library(rgl)
+library(RColorBrewer)
+library(ggstatsplot)
+library(tidyverse)
+library(ggpubr)
+
+
+BVA2_ordinal_SPSS <- read_excel("C:/Users/nb-12/Desktop/Studium/Vegetationsökologie/BVA2_2022_Analysedaten-APL_UPII.xlsx", 
+    sheet = "BVA2_ordinal_SPSS")
+```
+
+# Statistische Tests
+
+```{r}
+# Shapiro-Wilk:               shapiro.test()
+# Kolmogorov-Smirnov:         ks.test()
+# Mann-Whitney-U-Test:        wilcox.test()
+# t-Test:                     t.test()
+# ANOVA:                      aov()
+# Tukey:                      TukeyHSD()
+# Tamhane T2:                 t2()
+# Kruskal-Wallis:             kruskal.test()
+# t-Test mit paarigen Werten: t.test()
+# Wilcoxon-Test:              wilcox.test()
+```
+
+# 4.2
+## AZber+Blöcke (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter((Ja=="2017" & Blo_einf==0)|(Ja=="2022" & Blo_einf!=0)) %>% 
+  select("Blo_einf", "AZber")
+
+# analysis of variance/ anova
+fit <- aov(AZber ~ Blo_einf, data = filtered)
+summary(fit)
+
+anova(fit)
+
+# Shapiro-Wilk-Test
+shapiro.test(residuals(fit))
+shapiro.test(filtered$AZber)
+
+kruskal.test(filtered$AZber ~ filtered$Blo_einf)
+
+# Tamhane T2 Test
+res <- tamhaneT2Test(fit)
+summary(res)
+summaryGroup(res)
+res
+
+palette <- brewer.pal(n=8, name="YlGn")
+
+#png("4_2_AZber+Blöcke(2022).png", width = 800, height = 600)
+
+boxplot(AZber ~ Blo_einf, data = filtered,
+        xlab="Blöcke (2022)",
+        ylab="Artenzahl",
+        col=palette,
+        names=c("LB (2017)", "1", "2", "3", "4", "5", "6", "7")
+        ) 
+
+#dev.off()
+```
+
+### Violinblock + Boxplot: AZber & Blöcke
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter((Ja=="2017" & Blo_einf==0)|(Ja=="2022" & Blo_einf!=0)) %>% 
+  select("Blo_einf", "AZber")
+
+plt <- ggbetweenstats(
+  data = filtered,
+  x = Blo_einf,
+  y = AZber,
+  type = "np",
+  conf.level = 0.95
+)
+
+
+plt <- plt + 
+  # Add labels and title
+  labs(
+    x = "Blöcke (2022)",
+    y = "Artenzahl",
+    #title = "Distribution of bill length across penguins species"
+  ) + 
+  # Customizations
+  theme(
+    # This is the new default font in the plot
+    text = element_text(family = "Roboto", size = 8, color = "black"),
+    plot.title = element_text(
+      family = "Lobster Two", 
+      size = 20,
+      face = "bold",
+      color = "#2a475e"
+    ),
+    # Statistical annotations below the main title
+    plot.subtitle = element_text(
+      family = "Roboto", 
+      size = 15, 
+      face = "bold",
+      color="#1b2838"
+    ),
+    plot.title.position = "plot", # slightly different from default
+    axis.text = element_text(size = 10, color = "black"),
+    axis.title = element_text(size = 12)
+  )
+
+# 1. Remove axis ticks
+# 2. Change default color of the axis lines with a lighter one
+# 3. Remove most reference lines, only keep the major horizontal ones.
+#    This reduces clutter, while keeping the reference for the variable
+#    being compared.
+# 4. Set the panel and the background fill to the same light color.
+
+plt <- plt  +
+  theme(
+    axis.ticks = element_blank(),
+    axis.line = element_line(colour = "grey50"),
+    panel.grid = element_line(color = "#b4aea9"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    panel.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4"),
+    plot.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4")
+  )
+
+ggsave(
+  filename = "#Violin Boxplot Azber Blöcke(2022)_np.png",
+  plot = plt,
+  width = 8,
+  height = 8,
+  device = "png"
+)
+```
+
+## AZber+Blöcke (alle Jahre)
+
+```{r}
+filtered <- BVA2_ordinal_SPSS %>%
+  filter(Ja %in% c(2003, 2007, 2014, 2017, 2022)) %>%
+  select(Blo_einf, AZber, Ja)
+  
+ggplot(filtered, aes(x=as.character(Blo_einf), y=AZber, fill=factor(Ja))) + 
+geom_boxplot(position = position_dodge2(width = 1, preserve = "single"))  +
+labs(x = "Blöcke", y = "Artenzahl", fill = "Jahr") +
+scale_x_discrete(labels = c("LB", "1", "2", "3", "4", "5", "6", "7")) +
+  scale_fill_manual(values = c("salmon1", "tan1", "yellowgreen", "palegreen", "orchid"))
+#facet_grid(~as.character(Blo_einf)) + scale_fill_brewer()
+
+#ggsave("4_2_AZber+Blöcke(alle Jahre).png", width=8, height=6)
+```
+
+## Arten+Blöcke (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter((Ja=="2017")|(Ja=="2022")) %>%
+  select(Blo_einf, `Fes rub`, `Iri sib`, `Lol per`, `Rhi min`, `Tara off`) %>%
+  rename("Festuca rubra (Rot-Schwingel)" = "Fes rub", "Iris sibirica (Wiesen-Schwertlilie)" = "Iri sib", "Lolium perenne (Deutsches Weidelgras)" = "Lol per", "Rhinanthus minor (Kleiner Klappertopf)" = "Rhi min", "Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)" = "Tara off")
+
+melted <- melt(filtered, id.vars = 'Blo_einf', variable.name = 'Arten')
+
+#Shapiro-Test
+shapiro.test(filtered$`Festuca rubra (Rot-Schwingel)`)
+shapiro.test(filtered$`Iris sibirica (Wiesen-Schwertlilie)`)
+shapiro.test(filtered$`Lolium perenne (Deutsches Weidelgras)`)
+shapiro.test(filtered$`Rhinanthus minor (Kleiner Klappertopf)`)
+shapiro.test(filtered$`Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)`)
+
+#Mann-Whitney-U-Test
+wilcox.test(filtered$`Festuca rubra (Rot-Schwingel)`, alternative = "two.sided")
+wilcox.test(filtered$`Iris sibirica (Wiesen-Schwertlilie)`, alternative = "two.sided")
+wilcox.test(filtered$`Lolium perenne (Deutsches Weidelgras)`, alternative = "two.sided")
+wilcox.test(filtered$`Rhinanthus minor (Kleiner Klappertopf)`, alternative = "two.sided")
+wilcox.test(filtered$`Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)`, alternative = "two.sided")
+
+#T-Test
+t.test(filtered$`Festuca rubra (Rot-Schwingel)`, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$`Iris sibirica (Wiesen-Schwertlilie)`, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$`Lolium perenne (Deutsches Weidelgras)`, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$`Rhinanthus minor (Kleiner Klappertopf)`, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$`Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)`, alternative = "two.sided", var.equal = TRUE)
+
+#anova
+anova <- aov(`Festuca rubra (Rot-Schwingel)` ~ Blo_einf, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`Iris sibirica (Wiesen-Schwertlilie)` ~ Blo_einf, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`Lolium perenne (Deutsches Weidelgras)` ~ Blo_einf, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`Rhinanthus minor (Kleiner Klappertopf)` ~ Blo_einf, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)` ~ Blo_einf, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`Festuca rubra (Rot-Schwingel)` ~ `Iris sibirica (Wiesen-Schwertlilie)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Festuca rubra (Rot-Schwingel)` ~ `Lolium perenne (Deutsches Weidelgras)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Festuca rubra (Rot-Schwingel)` ~ `Rhinanthus minor (Kleiner Klappertopf)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Festuca rubra (Rot-Schwingel)` ~ `Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Iris sibirica (Wiesen-Schwertlilie)` ~ `Lolium perenne (Deutsches Weidelgras)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Iris sibirica (Wiesen-Schwertlilie)` ~ `Rhinanthus minor (Kleiner Klappertopf)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Iris sibirica (Wiesen-Schwertlilie)` ~ `Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Lolium perenne (Deutsches Weidelgras)` ~ `Rhinanthus minor (Kleiner Klappertopf)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Lolium perenne (Deutsches Weidelgras)` ~ `Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)`, data = filtered)
+summary(anova)
+
+anova <- aov(`Rhinanthus minor (Kleiner Klappertopf)` ~ `Taraxacum officinale agg. (Artengruppe Gemeiner Löwenzahn)`, data = filtered)
+summary(anova)
+
+ggplot(melted, aes(fill=Arten, y=value, x=Blo_einf)) + 
+    geom_bar(position="stack", stat="summary") +
+    scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6, 7), labels = c("LB (2017)", "1", "2", "3", "4", "5", "6", "7")) +
+    #scale_y_continuous(labels=scales::percent) +
+    theme(panel.grid=element_blank()) +
+labs(x = "Blöcke", y = "mittlerer Anteil", fill = "Arten")
+```
+
+# 4.3
+## BioM+Blöcke (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>%
+  filter((Ja=="2022")|(Ja=="2017")) 
+  #mutate(Blo_einf=replace(Blo_einf, Blo_einf==0, "Leitbild"))
+
+palette <- brewer.pal(n=8, name="YlGn")
+
+#png("4_3_BioM+Blöcke(2022).png", width = 800, height = 600)
+
+boxplot(BioM ~ Blo_einf, data = filtered,
+        #main="Biomasse gegen Blöcke",
+        xlab="Blöcke (2022)",
+        ylab="Biomasse (Trockenmasse) in dt/ha",
+        col=palette,
+        names=c("LB (2017)", "1", "2", "3", "4", "5", "6", "7")
+        )
+
+#dev.off()
+```
+
+## BioM+MBoA (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>%
+  #filter((Ja=="2022")|(Ja=="2017"))
+  filter(Ja=="2022")
+
+#Shapiro-Test
+shapiro.test(filtered$BioM)
+
+#Kolmogorov-Smirnov-Test
+ks.test(filtered$BioM, "pnorm", mean=mean(filtered$BioM), sd=sd(filtered$BioM))
+
+#Mann-Whitney-U-Test
+#wilcox.test(filtered_data1$column_of_interest, filtered_data2$column_of_interest, alternative = "two.sided")
+wilcox.test(filtered$BioM, alternative = "two.sided")
+
+
+#T-Test
+#t.test(data$column_of_interest[data$variable == "some condition"], data$column_of_interest[data$variable == "another condition"], alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$BioM, alternative = "two.sided", var.equal = TRUE)
+
+#anova
+anova <- aov(BioM ~ MBoA, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+#png("4_3_BioM+MBoA(2022)_mean.png", width = 800, height = 600)
+
+boxplot(BioM ~ MBoA, data = filtered,
+        #main="Biomasse gegen Bodenabtrag",
+        xlab="Maßnahme Bodenabtrag (2022)",
+        ylab="Biomasse (Trockenmasse) in dt/ha",
+        col=c("green", "green3"),
+        names=c("ohne", "mit")
+        )
+
+#xpos <- c(1, 2)
+#ypos <- sapply(split(filtered$BioM, filtered$MBoA), mean)
+#text(x = xpos, y = ypos, labels = round(ypos, 2), pos = 3)
+
+#dev.off
+
+```
+
+### Violinblock + Boxplot: BioM+MBoA (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter(Ja=="2022") %>% 
+  select("MBoA", "BioM")
+
+plt <- ggbetweenstats(
+  data = filtered,
+  x = MBoA,
+  y = BioM,
+  type = "np",
+  conf.level = 0.95
+)
+
+
+plt <- plt + 
+  # Add labels and title
+  labs(
+    x = "Maßnahme Bodenabtrag (2022)",
+    y = "Biomasse (Trockenmasse) in dt/ha",
+    #title = "Distribution of bill length across penguins species"
+  ) + 
+  # Customizations
+  theme(
+    # This is the new default font in the plot
+    text = element_text(family = "Roboto", size = 8, color = "black"),
+    plot.title = element_text(
+      family = "Lobster Two", 
+      size = 20,
+      face = "bold",
+      color = "#2a475e"
+    ),
+    # Statistical annotations below the main title
+    plot.subtitle = element_text(
+      family = "Roboto", 
+      size = 15, 
+      face = "bold",
+      color="#1b2838"
+    ),
+    plot.title.position = "plot", # slightly different from default
+    axis.text = element_text(size = 10, color = "black"),
+    axis.title = element_text(size = 12)
+  )
+
+# 1. Remove axis ticks
+# 2. Change default color of the axis lines with a lighter one
+# 3. Remove most reference lines, only keep the major horizontal ones.
+#    This reduces clutter, while keeping the reference for the variable
+#    being compared.
+# 4. Set the panel and the background fill to the same light color.
+
+plt <- plt  +
+  theme(
+    axis.ticks = element_blank(),
+    axis.line = element_line(colour = "grey50"),
+    panel.grid = element_line(color = "#b4aea9"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    panel.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4"),
+    plot.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4")
+  )
+
+ggsave(
+  filename = "#Violin Boxplot BioM MBoA (2022)_np.png",
+  plot = plt,
+  width = 8,
+  height = 8,
+  device = "png"
+)
+```
+
+## BioM + MBoA (2007)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>%
+  filter(Ja=="2007")
+
+
+#Shapiro-Test
+shapiro.test(filtered$BioM)
+
+#Kolmogorov-Smirnov-Test
+ks.test(filtered$BioM, "pnorm", mean=mean(filtered$BioM), sd=sd(filtered$BioM))
+
+#Mann-Whitney-U-Test
+wilcox.test(filtered$BioM, alternative = "two.sided")
+
+#T-Test
+t.test(filtered$BioM, alternative = "two.sided", var.equal = TRUE)
+
+#anova
+anova <- aov(BioM ~ MBoA, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+#png("4_3_BioM+MBoA(2007)_mean.png", width = 800, height = 600)
+
+boxplot(BioM ~ MBoA, data = filtered,
+        #main="Biomasse gegen Bodenabtrag",
+        xlab="Maßnahme Bodenabtrag (2007)",
+        ylab="Biomasse (Trockenmasse) in dt/ha",
+        col=c("green", "green3"),
+        names=c("ohne", "mit")
+        )
+
+xpos <- c(1, 2)
+ypos <- sapply(split(filtered$BioM, filtered$MBoA), mean)
+text(x = xpos, y = ypos, labels = round(ypos, 2), pos = 3)
+
+#dev.off()
+```
+
+### Violinblock + Boxplot: BioM+MBoA (2007)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter(Ja=="2007") %>% 
+  select("MBoA", "BioM")
+
+plt <- ggbetweenstats(
+  data = filtered,
+  x = MBoA,
+  y = BioM,
+  type = "p",
+  conf.level = 0.95
+)
+
+
+plt <- plt + 
+  # Add labels and title
+  labs(
+    x = "Maßnahme Bodenabtrag (2022)",
+    y = "Biomasse (Trockenmasse) in dt/ha",
+    #title = "Distribution of bill length across penguins species"
+  ) + 
+  # Customizations
+  theme(
+    # This is the new default font in the plot
+    text = element_text(family = "Roboto", size = 8, color = "black"),
+    plot.title = element_text(
+      family = "Lobster Two", 
+      size = 20,
+      face = "bold",
+      color = "#2a475e"
+    ),
+    # Statistical annotations below the main title
+    plot.subtitle = element_text(
+      family = "Roboto", 
+      size = 15, 
+      face = "bold",
+      color="#1b2838"
+    ),
+    plot.title.position = "plot", # slightly different from default
+    axis.text = element_text(size = 10, color = "black"),
+    axis.title = element_text(size = 12)
+  )
+
+# 1. Remove axis ticks
+# 2. Change default color of the axis lines with a lighter one
+# 3. Remove most reference lines, only keep the major horizontal ones.
+#    This reduces clutter, while keeping the reference for the variable
+#    being compared.
+# 4. Set the panel and the background fill to the same light color.
+
+plt <- plt  +
+  theme(
+    axis.ticks = element_blank(),
+    axis.line = element_line(colour = "grey50"),
+    panel.grid = element_line(color = "#b4aea9"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.major.y = element_line(linetype = "dashed"),
+    panel.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4"),
+    plot.background = element_rect(fill = "#fbf9f4", color = "#fbf9f4")
+  )
+
+ggsave(
+  filename = "#Violin Boxplot BioM MBoA (2007)_p.png",
+  plot = plt,
+  width = 8,
+  height = 8,
+  device = "png"
+)
+```
+
+## BioM+MBoA (alle Jahre)
+
+```{r}
+filtered <- BVA2_ordinal_SPSS %>%
+  filter(Ja %in% c(2007, 2014, 2022)) %>%
+  select(MBoA, BioM, Ja)
+  
+ggplot(filtered, aes(x=as.character(MBoA), y=BioM, fill=factor(Ja))) + 
+geom_boxplot(position = position_dodge2(width = 1, preserve = "single")) +
+labs(x = "Maßnahme Bodenabtrag", y = "Biomasse (Trockenmasse) in dt/ha", fill = "Jahr")+
+  scale_x_discrete(labels = c("ohne", "mit"))+
+  scale_fill_manual(values = c("tan1", "yellowgreen", "orchid"))
+
+#ggsave("4_3_BioM+MBoA(2007+2014+2022).png", width=8, height=6)
+```
+
+## LAI+Blöcke (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter((Ja=="2017")|(Ja=="2022")) %>%
+  select(Blo_einf, LAI0, LAI5, LAI20) %>%
+  rename("0 cm" = "LAI0", "5 cm" = "LAI5", "20 cm" = "LAI20")
+
+melted <- melt(filtered, id.vars = 'Blo_einf', variable.name = 'LAI', na.rm = TRUE)
+
+
+#Shapiro-Test
+shapiro.test(filtered$`0 cm`)
+shapiro.test(filtered$`5 cm`)
+shapiro.test(filtered$`20 cm`)
+
+
+#Mann-Whitney-U-Test
+wilcox.test(filtered$`0 cm`, alternative = "two.sided")
+wilcox.test(filtered$`5 cm`, alternative = "two.sided")
+wilcox.test(filtered$`20 cm`, alternative = "two.sided")
+
+
+#T-Test
+t.test(filtered$`0 cm`, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$`5 cm`, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$`20 cm`, alternative = "two.sided", var.equal = TRUE)
+
+#anova
+anova <- aov(`0 cm` ~ Blo_einf, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`5 cm` ~ Blo_einf, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`20 cm` ~ Blo_einf, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`0 cm` ~ `5 cm`, data = filtered)
+summary(anova)
+
+anova <- aov(`0 cm` ~ `20 cm`, data = filtered)
+summary(anova)
+
+anova <- aov(`5 cm` ~ `20 cm`, data = filtered)
+summary(anova)
+
+
+
+ggplot(melted, aes(x = as.character(Blo_einf), y = value, fill = LAI)) +
+         geom_boxplot(position = position_dodge2(width = 1, preserve = "single"))  +
+labs(x = "Blöcke", y = "mittlerer Blattflächenindex (LAI)", fill = "Höhe") +
+scale_x_discrete(labels = c("LB", "1", "2", "3", "4", "5", "6", "7"))
+
+#ggsave("4_3_LAI+Blöcke(2022).png", width=8, height=6)
+```
+
+## LAI+MBoA (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter(Ja=="2022") %>%
+  select(MBoA, LAI0, LAI5, LAI20) %>%
+  rename("0 cm" = "LAI0", "5 cm" = "LAI5", "20 cm" = "LAI20")
+
+melted <- melt(filtered, id.vars = 'MBoA', variable.name = 'LAI', na.rm = TRUE)
+
+#Shapiro-Test
+shapiro.test(filtered$`0 cm`)
+shapiro.test(filtered$`5 cm`)
+shapiro.test(filtered$`20 cm`)
+
+
+#Mann-Whitney-U-Test
+wilcox.test(filtered$`0 cm`, alternative = "two.sided")
+wilcox.test(filtered$`5 cm`, alternative = "two.sided")
+wilcox.test(filtered$`20 cm`, alternative = "two.sided")
+
+
+#T-Test
+t.test(filtered$`0 cm`, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$`5 cm`, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$`20 cm`, alternative = "two.sided", var.equal = TRUE)
+
+#anova
+anova <- aov(`0 cm` ~ MBoA, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`5 cm` ~ MBoA, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`20 cm` ~ MBoA, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(`0 cm` ~ `5 cm`, data = filtered)
+summary(anova)
+
+anova <- aov(`0 cm` ~ `20 cm`, data = filtered)
+summary(anova)
+
+anova <- aov(`5 cm` ~ `20 cm`, data = filtered)
+summary(anova)
+
+ggplot(melted, aes(x = as.character(MBoA), y = value, fill = LAI)) +
+         geom_boxplot(position = position_dodge2(width = 1, preserve = "single"))  +
+labs(x = "Maßnahme Bodenabtrag (2022)", y = "mittlerer Blattflächenindex (LAI)", fill = "Höhe") +
+scale_x_discrete(labels = c("ohne", "mit"))
+
+#ggsave("4_3_LAI+MBoA(2022).png", width=8, height=6)
+```
+
+## Ertrag+Blöcke (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter((Ja=="2017")|(Ja=="2022")) %>%
+  select(Blo_einf, EAL, EAG, EAK) %>%
+  rename("Leguminosen" = "EAL", "Gräser" = "EAG", "Kräuter" = "EAK")
+
+melted <- melt(filtered, id.vars = 'Blo_einf', variable.name = 'Ertrag')
+
+ggplot(melted, aes(fill=Ertrag, y=value, x=Blo_einf)) + 
+    geom_bar(position="fill", stat="identity") +
+    scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6, 7), labels = c("LB (2017)", "1", "2", "3", "4", "5", "6", "7")) +
+    scale_y_continuous(labels=scales::percent) +
+    theme(panel.grid=element_blank()) +
+    labs(x = "Blöcke (2022)", y = "Ertragsanteil", fill = "Artengruppe")
+
+#ggsave("4_3_Ertrag+Blöcke(2022).png", width=8, height=6)
+```
+
+## Ertrag+MBoA (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter(Ja=="2022") %>%
+  select(MBoA, EAL, EAG, EAK) %>%
+  rename("Leguminosen" = "EAL", "Gräser" = "EAG", "Kräuter" = "EAK")
+
+melted <- melt(filtered, id.vars = 'MBoA', variable.name = 'Ertrag')
+
+ggplot(melted, aes(fill=Ertrag, y=value, x=MBoA)) + 
+    geom_bar(position="fill", stat="identity") +
+    scale_x_continuous(breaks = c(0, 1), labels = c("ohne", "mit")) +
+    scale_y_continuous(labels=scales::percent) +
+    theme(panel.grid=element_blank()) +
+labs(x = "Maßnahme Bodenabtrag (2022)", y = "Ertragsanteil", fill = "Artengruppe")
+
+#ggsave("4_3_Ertrag+MBoA(2022).png", width=8, height=6)
+```
+
+## Höhe+Blöcke (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter((Ja=="2017")|(Ja=="2022")) %>%
+  select(Blo_einf, HoKS1, HoKS2, HoKS3) %>%
+  rename("maximal" = "HoKS1", "mittel" = "HoKS2", "minimal" = "HoKS3")
+
+melted <- melt(filtered, id.vars = 'Blo_einf', variable.name = 'Höhe', na.rm = TRUE)
+
+ggplot(melted, aes(x = as.character(Blo_einf), y = value, fill = Höhe)) +
+         geom_boxplot(position = position_dodge2(width = 1, preserve = "single")) +
+labs(x = "Blöcke (2022)", y = "Höhe in cm", fill = "Krautschicht") +
+scale_x_discrete(labels = c("LB (2017)", "1", "2", "3", "4", "5", "6", "7"))
+
+#ggsave("4_3_Höhe+Blöcke(2022).png", width=8, height=6)
+```
+
+## Höhe+MBoA (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter(Ja=="2022") %>%
+  select(MBoA, HoKS1, HoKS2, HoKS3) %>%
+  rename("maximal" = "HoKS1", "mittel" = "HoKS2", "minimal" = "HoKS3")
+
+melted <- melt(filtered, id.vars = 'MBoA', variable.name = 'Höhe', na.rm = TRUE)
+
+ggplot(melted, aes(x = as.character(MBoA), y = value, fill = Höhe)) +
+         geom_boxplot(position = position_dodge2(width = 1, preserve = "single"))  +
+labs(x = "Maßnahme Bodenabtrag (2022)", y = "Höhe in cm", fill = "Krautschicht") +
+scale_x_discrete(labels = c("ohne", "mit"))
+
+#ggsave("4_3_Höhe+MBoA(2022).png", width=8, height=6)
+```
+
+## Höhe+MBoA (2007)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter(Ja=="2007") %>%
+  select(MBoA, HoKS1, HoKS2, HoKS3) %>%
+  rename("maximal" = "HoKS1", "mittel" = "HoKS2", "minimal" = "HoKS3")
+
+melted <- melt(filtered, id.vars = 'MBoA', variable.name = 'Höhe', na.rm = TRUE)
+
+ggplot(melted, aes(x = as.character(MBoA), y = value, fill = Höhe)) +
+         geom_boxplot(position = position_dodge2(width = 1, preserve = "single")) +
+labs(x = "Maßnahme Bodenabtrag (2007)", y = "Höhe in cm", fill = "Krautschicht") +
+scale_x_discrete(labels = c("ohne", "mit"))
+
+#ggsave("4_3_Höhe+MBoA(2007).png", width=8, height=6)
+```
+
+# 4.4
+## RL Summe+Blöcke (alle Jahre)
+
+```{r}
+filtered <- BVA2_ordinal_SPSS %>%
+  #filter(Ja %in% c(2003, 2007, 2014, 2017, 2019, 2022)) %>%
+  select(Blo_einf, RLSum, Ja)
+  
+ggplot(filtered, aes(x=as.character(Blo_einf), y=RLSum, fill=factor(Ja))) + 
+geom_boxplot(position = position_dodge2(width = 1, preserve = "single")) +
+labs(x = "Blöcke", y = "Anzahl Rote Liste Arten gesamt", fill = "Jahr") +
+scale_x_discrete(labels = c("LB", "1", "2", "3", "4", "5", "6", "7")) +
+  scale_fill_manual(values = c("salmon1", "tan1", "yellowgreen", "palegreen", "steelblue1", "orchid"))
+
+#ggsave("4_4_RLSumme+Blöcke.png", width=8, height=6)
+```
+
+## RL Summe + MBoA (2007, 2014, 2022)
+
+```{r}
+filtered <- BVA2_ordinal_SPSS %>%
+  filter(Ja %in% c(2007, 2014, 2022)) %>%
+  select(MBoA, RLSum, Ja)
+
+filtered1 <- BVA2_ordinal_SPSS %>%
+  filter(Ja=="2007") %>%
+  select(MBoA, RLSum, Ja)
+
+filtered2 <- BVA2_ordinal_SPSS %>%
+  filter(Ja=="2014") %>%
+  select(MBoA, RLSum, Ja)
+
+filtered3 <- BVA2_ordinal_SPSS %>%
+  filter(Ja=="2022") %>%
+  select(MBoA, RLSum, Ja)
+
+filtered4 <- BVA2_ordinal_SPSS %>%
+  filter(MBoA=="0" & Ja %in% c(2007, 2014, 2022)) %>%
+  select(MBoA, RLSum, Ja)
+
+filtered5 <- BVA2_ordinal_SPSS %>%
+  filter(MBoA=="1" & Ja %in% c(2007, 2014, 2022)) %>%
+  select(MBoA, RLSum, Ja)
+
+
+#Shapiro-Test
+shapiro.test(filtered$RLSum)
+shapiro.test(filtered$Ja)
+
+#Mann-Whitney-U-Test
+wilcox.test(filtered$RLSum, alternative = "two.sided")
+wilcox.test(filtered$Ja, alternative = "two.sided")
+
+#T-Test
+t.test(filtered$RLSum, alternative = "two.sided", var.equal = TRUE)
+t.test(filtered$Ja, alternative = "two.sided", var.equal = TRUE)
+
+#anova
+anova <- aov(RLSum ~ MBoA, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(RLSum ~ Ja, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(Ja ~ MBoA, data = filtered)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(RLSum ~ MBoA, data = filtered1)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(RLSum ~ MBoA, data = filtered2)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(RLSum ~ MBoA, data = filtered3)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(RLSum ~ Ja, data = filtered4)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+anova <- aov(RLSum ~ Ja, data = filtered5)
+summary(anova)
+
+#Tamhane T2 Test
+res <- tamhaneT2Test(anova)
+summary(res)
+summaryGroup(res)
+res
+
+ggplot(filtered, aes(x=as.character(MBoA), y=RLSum, fill=factor(Ja))) + 
+geom_boxplot(position = position_dodge2(width = 1, preserve = "single"))  +
+labs(x = "Maßnahme Bodenabtrag", y = "Anzahl Rote Liste Arten gesamt", fill = "Jahr") +
+scale_x_discrete(labels = c("ohne", "mit")) +
+  scale_fill_manual(values = c("tan1", "yellowgreen","orchid"))
+
+#ggsave("4_4_RLSumme+MBoA(2007, 2014, 2022).png", width=8, height=6)
+```
+
+## RL 1-V + Blöcke (2017, 2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter((Ja=="2017")|(Ja=="2022")) %>%
+  select(Blo_einf, RL1, RL2, RL3, RLV) %>%
+  rename("1: Vom Aussterben bedroht" = "RL1", "2: Stark gefährdet" = "RL2", "3: Gefährdet" = "RL3", "V: Vorwarnliste"="RLV")
+
+melted <- melt(filtered, id.vars = 'Blo_einf', variable.name = 'RL')
+
+ggplot(melted, aes(fill=RL, y=value, x=Blo_einf)) + 
+    geom_bar(position="stack", stat="summary") +
+    scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6, 7), labels = c("LB (2017)", "1", "2", "3", "4", "5", "6", "7")) +
+    #scale_y_continuous(labels=scales::percent) +
+    theme(panel.grid=element_blank()) +
+labs(x = "Blöcke", y = "Anzahl Rote Liste Arten", fill = "Rote Liste Status")
+
+#ggsave("4_4_RL1-V+Blöcke(2022).png", width=8, width=6)
+```
+
+## RL1-4 + MBoA (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter(Ja=="2022") %>%
+  select(MBoA, RL1, RL2, RL3, RLV) %>%
+  rename("1: Vom Aussterben bedroht" = "RL1", "2: Stark gefährdet" = "RL2", "3: Gefährdet" = "RL3", "V: Vorwarnliste"="RLV")
+
+melted <- melt(filtered, id.vars = 'MBoA', variable.name = 'RL')
+
+ggplot(melted, aes(fill=RL, y=value, x=MBoA)) + 
+    geom_bar(position="stack", stat="summary") +
+    scale_x_continuous(breaks = c(0, 1), labels=c("ohne", "mit")) +
+    #scale_y_continuous(labels=scales::percent) +
+    theme(panel.grid=element_blank()) +
+labs(x = "Maßnahme Bodenabtrag (2022)", y = "Anzahl Rote Liste Arten", fill = "Rote Liste Status")
+
+#ggsave("4_4_RL1-V+MBoA(2022).png", width=8, height=6)
+```
+
+## RL 1-4 + MWV (2022)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter(Ja=="2022") %>%
+  select(MWV, RL1, RL2, RL3, RLV) %>%
+  rename("1: Vom Aussterben bedroht" = "RL1", "2: Stark gefährdet" = "RL2", "3: Gefährdet" = "RL3", "V: Vorwarnliste"="RLV")
+
+melted <- melt(filtered, id.vars = 'MWV', variable.name = 'RL')
+
+ggplot(melted, aes(fill=RL, y=value, x=MWV)) + 
+    geom_bar(position="stack", stat="summary") +
+    scale_x_continuous(breaks = c(0, 1), labels = c("ohne", "mit")) +
+    #scale_y_continuous(labels=scales::percent) +
+    theme(panel.grid=element_blank()) +
+labs(x = "Maßnahme Wiedervernässerung (2022)", y = "Anzahl Rote Liste Arten", fill = "Rote Liste Status")
+
+#ggsave("4_4_RL1-V+MWV(2022).png", width=8, height=6)
+```
+
+## ZAG + Blöcke (alle Jahre)
+
+```{r}
+filtered = BVA2_ordinal_SPSS %>% 
+  filter((Ja=="2017")|(Ja=="2022")) %>%
+  select(Blo_einf, ZA1, ZA2, ZA3, ZA4, ZA5, ZA6, ZA7) %>%
+  rename("ZAG 1" = "ZA1", "ZAG 2" = "ZA2", "ZAG 3" = "ZA3", "ZAG 4" = "ZA4", "ZAG 5" = "ZA5", "ZAG 6" = "ZA6", "ZAG 7" = "ZA7")
+
+melted <- melt(filtered, id.vars = 'Blo_einf', variable.name = 'ZAG')
+
+ggplot(melted, aes(fill=ZAG, y=value, x=Blo_einf)) + 
+    geom_bar(position="stack", stat="identity") +
+    scale_x_continuous(breaks = c(0, 1, 2, 3, 4, 5, 6, 7), labels = c("LB (2017)", "1", "2", "3", "4", "5", "6", "7")) +
+    #scale_y_continuous(labels=scales::percent) +
+    theme(panel.grid=element_blank()) +
+labs(x = "Blöcke (2022)", y = "Artenanzahl Summe", fill = "Zielartengruppe")
+
+ggsave("4_4_ZAG+Blöcke(2022).png", width=8, height=6)
+```
+
+
+```{r}
+```
+
